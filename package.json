@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "linqsy-workspace",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Monorepo for Linqsy, a LAN-first browser file sharing tool.",
   "license": "MIT",
   "authors": {

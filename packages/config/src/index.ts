@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const appMeta = {
   name: 'linqsy',
-  version: '0.1.1',
+  version: '0.1.2',
 } as const;
 
 export const appConfigSchema = z.object({

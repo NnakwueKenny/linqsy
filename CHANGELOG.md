@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 - 2026-04-25
+
+CLI bin path hotfix.
+
+Highlights:
+- removed the wrapper bin shim and pointed the package bin directly at the built CLI entry
+- fixed local and installed command execution paths so `linqsy start` and `npx linqsy start` resolve more reliably
+- aligned the CLI version output with the published patch release through `@linqsy/config`
+
 ## 0.1.1 - 2026-04-24
 
 CLI packaging hotfix.
