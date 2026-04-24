@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { hostname, networkInterfaces } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { appMeta, resolveAppConfig } from '@linqsy/config';
 import { startServer, type AppBootstrapContext } from '@linqsy/server';
 
@@ -236,9 +237,9 @@ function normalizeCliInput(argv: string[]) {
   };
 }
 
-async function main() {
+export async function main(argv = process.argv.slice(2)) {
 
-  const { command, args } = normalizeCliInput(process.argv.slice(2));
+  const { command, args } = normalizeCliInput(argv);
 
   if (command === 'version') {
     runVersion();
@@ -259,4 +260,6 @@ async function main() {
   process.exit(1);
 }
 
-void main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void main();
+}

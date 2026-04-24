@@ -5,7 +5,7 @@
   "description": "CLI host for Linqsy local-network browser file sharing.",
   "license": "MIT",
   "bin": {
-    "linqsy": "./dist/apps/cli/src/main.js"
+    "linqsy": "./bin/linqsy.js"
   },
   "main": "./dist/apps/cli/src/main.js",
   "types": "./dist/apps/cli/src/main.d.ts",
@@ -13,6 +13,7 @@
     ".": "./dist/apps/cli/src/main.js"
   },
   "files": [
+    "bin",
     "dist/apps/cli",
     "README.md"
   ],
