@@ -2,6 +2,22 @@
 
 Linqsy is a local-network file sharing tool that starts from the terminal and opens a browser-based transfer experience.
 
+## Install
+
+```bash
+npm install -g linqsy
+pnpm add -g linqsy
+yarn global add linqsy
+```
+
+Or run it directly:
+
+```bash
+npx linqsy
+pnpm dlx linqsy
+yarn dlx linqsy
+```
+
 ## Commands
 
 ```bash
@@ -18,5 +34,6 @@ From the workspace root:
 pnpm dev:cli
 ```
 
-For full project documentation, use the repository root README.
+For full project documentation, use the repository root README:
 
+- https://github.com/NnakwueKenny/linqsy

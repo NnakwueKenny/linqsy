@@ -14,6 +14,10 @@ Intended public packages:
 - `@linqsy/config`
 - `@linqsy/server`
 
+Current published version:
+
+- `0.1.0`
+
 Private workspace packages:
 
 - `@linqsy/web`
@@ -21,12 +25,12 @@ Private workspace packages:
 
 The CLI package is the user-facing install target. The internal packages support the runtime structure used by the CLI.
 
-## Before any public release
+## Before the next public release
 
 Complete these first:
 
-1. Create the GitHub repository.
-2. Push the repo and verify the default branch.
+1. Push the current branch and verify CI on GitHub.
+2. Bump package versions intentionally.
 3. Run `pnpm release:check`.
 4. Verify the host/client transfer loop manually on two devices.
 5. Confirm npm publishing access and 2FA or token readiness.
@@ -119,6 +123,7 @@ pnpm --filter linqsy pack --pack-destination ../../.release
 - Run a clean build before publishing.
 - Verify versions are aligned before every release.
 - npm publishing for public packages requires either account 2FA or a publish-capable token.
+- Re-publishing the same version is not allowed; bump versions before every new release.
 
 ## Recommended first public version
 

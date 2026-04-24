@@ -1,12 +1,16 @@
 # Linqsy
 
+[![CI](https://github.com/NnakwueKenny/linqsy/actions/workflows/ci.yml/badge.svg)](https://github.com/NnakwueKenny/linqsy/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/linqsy)](https://www.npmjs.com/package/linqsy)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+
 Linqsy is a LAN-first file sharing tool that starts from a CLI command and opens a polished browser experience for nearby devices on the same network.
 
 The host runs a command, Linqsy starts a local Fastify + WebSocket server, opens the browser, and shows a joinable sharing surface. Other devices connect from their browsers with a QR code or join link. No client installation is required.
 
 ## Current status
 
-Linqsy is in active development.
+`0.1.0` is now published on npm.
 
 What is already working:
 - host startup from the CLI
@@ -20,8 +24,33 @@ What is already working:
 What is still being refined:
 - reconnect grace periods
 - final UI polish across every screen size
-- package-manager release flow
-- public repository hygiene before the first release
+- deeper end-to-end smoke coverage after publish
+- release automation for future versions
+
+## Install
+
+### Global install
+
+```bash
+npm install -g linqsy
+pnpm add -g linqsy
+yarn global add linqsy
+```
+
+### Run without installing globally
+
+```bash
+npx linqsy
+pnpm dlx linqsy
+yarn dlx linqsy
+```
+
+## Package links
+
+- CLI: https://www.npmjs.com/package/linqsy
+- Shared contracts: https://www.npmjs.com/package/@linqsy/shared
+- Config: https://www.npmjs.com/package/@linqsy/config
+- Server runtime: https://www.npmjs.com/package/@linqsy/server
 
 ## Stack
 
@@ -119,6 +148,10 @@ pnpm clean
 3. A second device scans the QR code or opens the join link.
 4. Once connected, the centered drop zone becomes active.
 5. Files or folders sent from either side are received automatically on the other side.
+
+## Release notes
+
+See [CHANGELOG.md](./CHANGELOG.md) for the published `0.1.0` release note.
 
 ## License
 
