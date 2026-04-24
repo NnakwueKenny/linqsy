@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Server runtime for Linqsy local-network browser transfers.",
+  "license": "MIT",
   "main": "./dist/apps/server/src/index.js",
   "types": "./dist/apps/server/src/index.d.ts",
   "exports": {

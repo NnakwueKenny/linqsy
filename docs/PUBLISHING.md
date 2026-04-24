@@ -25,12 +25,11 @@ The CLI package is the user-facing install target. The internal packages support
 
 Complete these first:
 
-1. Add a real `LICENSE` file.
-2. Create the GitHub repository.
-3. Push the repo and verify the default branch.
-4. Run `pnpm release:check`.
-5. Verify the host/client transfer loop manually on two devices.
-6. Confirm npm publishing access and 2FA or token readiness.
+1. Create the GitHub repository.
+2. Push the repo and verify the default branch.
+3. Run `pnpm release:check`.
+4. Verify the host/client transfer loop manually on two devices.
+5. Confirm npm publishing access and 2FA or token readiness.
 
 ## Local release check
 
@@ -120,7 +119,6 @@ pnpm --filter linqsy pack --pack-destination ../../.release
 - Run a clean build before publishing.
 - Verify versions are aligned before every release.
 - npm publishing for public packages requires either account 2FA or a publish-capable token.
-- Do not publish until the license question is settled.
 
 ## Recommended first public version
 

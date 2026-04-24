@@ -3,6 +3,7 @@
   "name": "linqsy-workspace",
   "version": "0.1.0",
   "description": "Monorepo for Linqsy, a LAN-first browser file sharing tool.",
+  "license": "MIT",
   "authors": {
     "others": [],
     "principal": "Kene Nnakwue"

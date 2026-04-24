@@ -120,13 +120,9 @@ pnpm clean
 4. Once connected, the centered drop zone becomes active.
 5. Files or folders sent from either side are received automatically on the other side.
 
-## Open-source notes
+## License
 
-This repository is being prepared for public release, but one important legal step is still outstanding:
-
-- choose a project license and add a `LICENSE` file before publishing publicly
-
-Until that is done, the code should not be treated as fully open-source in the legal sense.
+[MIT](./LICENSE)
 
 ## Contributing
 
