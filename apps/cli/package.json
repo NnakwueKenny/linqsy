@@ -1,0 +1,35 @@
+{
+  "type": "module",
+  "version": "0.1.0",
+  "name": "linqsy",
+  "description": "CLI host for Linqsy local-network browser file sharing.",
+  "bin": {
+    "linqsy": "./dist/apps/cli/src/main.js"
+  },
+  "main": "./dist/apps/cli/src/main.js",
+  "types": "./dist/apps/cli/src/main.d.ts",
+  "exports": {
+    ".": "./dist/apps/cli/src/main.js"
+  },
+  "files": [
+    "dist/apps/cli",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "node --import tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json && node ../../scripts/rewrite-relative-imports.mjs dist",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@linqsy/config": "workspace:^",
+    "@linqsy/server": "workspace:^"
+  },
+  "keywords": [
+    "cli",
+    "file-transfer",
+    "lan",
+    "local-network",
+    "sharing"
+  ]
+}

@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@source "../index.html";
+@source "./**/*.{ts,tsx}";
+@source "../../packages/ui/src/**/*.{ts,tsx}";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --app-bg: 244 246 249;
+    --app-fg: 18 24 33;
+  }
+
+  .dark:root {
+    color-scheme: dark;
+    --app-bg: 12 16 22;
+    --app-fg: 243 246 248;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  html {
+    background: rgb(var(--app-bg));
+  }
+
+  body {
+    margin: 0;
+    font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0)),
+      radial-gradient(circle at 50% 115%, rgba(91, 114, 238, 0.08), rgba(91, 114, 238, 0)),
+      rgb(var(--app-bg));
+    color: rgb(var(--app-fg));
+    transition:
+      background-color 220ms ease,
+      color 220ms ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .dark body {
+    background:
+      radial-gradient(circle at top, rgba(39, 49, 63, 0.28), rgba(12, 16, 22, 0)),
+      radial-gradient(circle at 50% 112%, rgba(91, 114, 238, 0.08), rgba(91, 114, 238, 0)),
+      rgb(var(--app-bg));
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  ::selection {
+    background: rgba(91, 114, 238, 0.18);
+    color: inherit;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}

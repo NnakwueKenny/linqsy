@@ -1,0 +1,33 @@
+{
+  "name": "@linqsy/server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Server runtime for Linqsy local-network browser transfers.",
+  "main": "./dist/apps/server/src/index.js",
+  "types": "./dist/apps/server/src/index.d.ts",
+  "exports": {
+    ".": "./dist/apps/server/src/index.js"
+  },
+  "files": [
+    "dist/apps/server"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "pnpm --filter @linqsy/web build && tsc -p tsconfig.json && node ../../scripts/rewrite-relative-imports.mjs dist && node ../../scripts/copy-web-dist.mjs ../web/dist dist/apps/server/web",
+    "dev": "node --watch --import tsx src/main.ts",
+    "prepack": "pnpm build",
+    "test": "pnpm --filter @linqsy/web build && node --test --import tsx src/**/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@linqsy/config": "workspace:^",
+    "@linqsy/shared": "workspace:^",
+    "fastify": "^5.8.5",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}

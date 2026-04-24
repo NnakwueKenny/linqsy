@@ -1,0 +1,25 @@
+{
+  "name": "@linqsy/shared",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Shared contracts and schemas for Linqsy.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node ../../scripts/rewrite-relative-imports.mjs dist",
+    "prepack": "pnpm build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

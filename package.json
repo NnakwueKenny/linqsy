@@ -1,0 +1,29 @@
+{
+  "private": true,
+  "name": "linqsy-workspace",
+  "version": "0.1.0",
+  "description": "Monorepo for Linqsy, a LAN-first browser file sharing tool.",
+  "authors": {
+    "others": [],
+    "principal": "Kene Nnakwue"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "clean": "node ./scripts/clean-workspace.mjs",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build",
+    "dev:cli": "pnpm --filter @linqsy/web build && pnpm --filter @linqsy/cli dev",
+    "dev:web": "pnpm --filter @linqsy/web dev",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "dev:server": "pnpm --filter @linqsy/server dev",
+    "release:check": "pnpm clean && pnpm typecheck && pnpm --filter @linqsy/server test && pnpm build"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "@types/node": "^25.6.0"
+  }
+}
