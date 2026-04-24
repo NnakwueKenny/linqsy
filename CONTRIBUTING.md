@@ -8,10 +8,10 @@ Read these source-of-truth docs first:
 
 - [STEERING.md](./STEERING.md)
 - [docs/steering/product.md](./docs/steering/product.md)
-- [docs/steering/engineering.md](./docs/steering/engineering.md)
 - [docs/steering/backend.md](./docs/steering/backend.md)
 - [docs/steering/frontend.md](./docs/steering/frontend.md)
 - [docs/steering/workflow.md](./docs/steering/workflow.md)
+- [docs/steering/engineering.md](./docs/steering/engineering.md)
 
 ## Development setup
 
@@ -65,4 +65,3 @@ pnpm release:check
   - `@linqsy/shared`
   - `@linqsy/config`
   - `@linqsy/server`
-

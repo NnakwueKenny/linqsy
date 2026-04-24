@@ -21,26 +21,23 @@ importers:
   apps/cli:
     dependencies:
       '@linqsy/config':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../packages/config
       '@linqsy/server':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../server
 
   apps/server:
     dependencies:
       '@linqsy/config':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../packages/config
       '@linqsy/shared':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../packages/shared
       fastify:
         specifier: ^5.8.5
         version: 5.8.5
-      qrcode:
-        specifier: ^1.5.4
-        version: 1.5.4
       ws:
         specifier: ^8.20.0
         version: 8.20.0
