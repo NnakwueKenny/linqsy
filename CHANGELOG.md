@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3 - 2026-04-25
+
+CLI symlink execution hotfix.
+
+Highlights:
+- fixed the direct-entry check so globally installed npm symlinks execute the CLI correctly
+- restored `linqsy version`, `linqsy doctor`, and `linqsy start` through normal global installs
+- aligned the CLI version output with the published patch release through `@linqsy/config`
+
 ## 0.1.2 - 2026-04-25
 
 CLI bin path hotfix.

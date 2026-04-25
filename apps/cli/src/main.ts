@@ -2,8 +2,9 @@
 
 import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { hostname, networkInterfaces } from 'node:os';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { appMeta, resolveAppConfig } from '@linqsy/config';
 import { startServer, type AppBootstrapContext } from '@linqsy/server';
 
@@ -260,6 +261,20 @@ export async function main(argv = process.argv.slice(2)) {
   process.exit(1);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isCliEntrypoint() {
+  const argvPath = process.argv[1];
+
+  if (!argvPath) {
+    return false;
+  }
+
+  try {
+    return realpathSync(argvPath) === fileURLToPath(import.meta.url);
+  } catch {
+    return import.meta.url === pathToFileURL(argvPath).href;
+  }
+}
+
+if (isCliEntrypoint()) {
   void main();
 }

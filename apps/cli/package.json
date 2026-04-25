@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "name": "linqsy",
   "description": "CLI host for Linqsy local-network browser file sharing.",
   "license": "MIT",
