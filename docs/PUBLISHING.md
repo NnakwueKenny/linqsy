@@ -16,7 +16,7 @@ Intended public packages:
 
 Current published version:
 
-- `0.1.0`
+- `0.1.4`
 
 Private workspace packages:
 

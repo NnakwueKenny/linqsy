@@ -50,6 +50,8 @@ type TransferFailureCode =
   | 'session_ended'
   | 'unavailable';
 
+const MAX_TRANSFER_BYTES = 1024 * 1024 * 1024 * 1024;
+
 function isValidationError(error: unknown): error is { issues: unknown } {
   return typeof error === 'object' && error !== null && 'issues' in error;
 }
@@ -68,6 +70,20 @@ function createErrorEnvelope(
 
 function getHeaderValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getDecodedHeaderValue(value: string | string[] | undefined): string | undefined {
+  const headerValue = getHeaderValue(value);
+
+  if (!headerValue) {
+    return undefined;
+  }
+
+  try {
+    return decodeURIComponent(headerValue);
+  } catch {
+    return headerValue;
+  }
 }
 
 function toReadableBody(body: unknown): Readable {
@@ -214,9 +230,15 @@ export function createApp(config: AppConfig, bootstrap: AppBootstrapContext) {
 
   sessionService.bootstrap(activeBootstrap);
 
-  app.addContentTypeParser('application/octet-stream', (_request, payload, done) => {
-    done(null, payload);
-  });
+  app.addContentTypeParser(
+    'application/octet-stream',
+    {
+      bodyLimit: MAX_TRANSFER_BYTES,
+    },
+    (_request, payload, done) => {
+      done(null, payload);
+    },
+  );
 
   app.setErrorHandler((error, request, reply) => {
     if (isValidationError(error)) {
@@ -225,6 +247,18 @@ export function createApp(config: AppConfig, bootstrap: AppBootstrapContext) {
           issues: error.issues,
         }),
       );
+      return;
+    }
+
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'FST_ERR_CTP_BODY_TOO_LARGE'
+    ) {
+      reply
+        .code(413)
+        .send(createErrorEnvelope('TRANSFER_TOO_LARGE', 'That file is larger than Linqsy can accept.'));
       return;
     }
 
@@ -387,12 +421,15 @@ export function createApp(config: AppConfig, bootstrap: AppBootstrapContext) {
 
   app.post<{ Params: SessionCodeParams }>(
     '/api/session/:code/transfers/upload',
+    {
+      bodyLimit: MAX_TRANSFER_BYTES,
+    },
     async (request, reply) => {
       const code = sessionCodeSchema.parse(request.params.code.toUpperCase());
       const payload = uploadTransferHeadersSchema.parse({
         deviceId: getHeaderValue(request.headers['x-linqsy-device-id']),
-        filename: getHeaderValue(request.headers['x-linqsy-filename']),
-        relativePath: getHeaderValue(request.headers['x-linqsy-relative-path']),
+        filename: getDecodedHeaderValue(request.headers['x-linqsy-filename']),
+        relativePath: getDecodedHeaderValue(request.headers['x-linqsy-relative-path']),
         mimeType:
           getHeaderValue(request.headers['x-linqsy-mime-type']) ?? 'application/octet-stream',
         size: getHeaderValue(request.headers['x-linqsy-size']),

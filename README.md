@@ -10,7 +10,7 @@ The host runs a command, Linqsy starts a local Fastify + WebSocket server, opens
 
 ## Current status
 
-`0.1.3` is the current CLI patch target on npm, following the initial `0.1.0` release.
+`0.1.4` is the current CLI patch target on npm, following the initial `0.1.0` release.
 
 What is already working:
 - host startup from the CLI
