@@ -1039,19 +1039,14 @@ export function App() {
     };
   }, [closed, deviceId, isReceiver, manualDisconnect, preview, receiverReady, session.code, session.status]);
 
-  async function saveBlob(blob: Blob, filename: string) {
-    const objectUrl = URL.createObjectURL(blob);
+  function triggerNativeDownload(transfer: Transfer) {
     const link = document.createElement('a');
-    link.href = objectUrl;
-    link.download = filename;
+    link.href = `/api/transfers/${encodeURIComponent(transfer.id)}/download`;
+    link.download = transfer.filename;
     link.rel = 'noopener';
     document.body.appendChild(link);
     link.click();
     link.remove();
-
-    window.setTimeout(() => {
-      URL.revokeObjectURL(objectUrl);
-    }, 1200);
   }
 
   async function downloadTransfer(transfer: Transfer) {
@@ -1062,42 +1057,7 @@ export function App() {
     inFlightDownloadsRef.current.add(transfer.id);
 
     try {
-      const response = await fetch(`/api/transfers/${encodeURIComponent(transfer.id)}/download`);
-
-      if (!response.ok) {
-        throw new Error('Download failed.');
-      }
-
-      if (response.body) {
-        const reader = response.body.getReader();
-        const chunks: ArrayBuffer[] = [];
-
-        while (true) {
-          const chunk = await reader.read();
-
-          if (chunk.done) {
-            break;
-          }
-
-          if (chunk.value) {
-            chunks.push(
-              chunk.value.buffer.slice(
-                chunk.value.byteOffset,
-                chunk.value.byteOffset + chunk.value.byteLength,
-              ) as ArrayBuffer,
-            );
-          }
-        }
-
-        await saveBlob(
-          new Blob(chunks, {
-            type: response.headers.get('content-type') || transfer.mimeType || 'application/octet-stream',
-          }),
-          transfer.filename,
-        );
-      } else {
-        await saveBlob(await response.blob(), transfer.filename);
-      }
+      triggerNativeDownload(transfer);
     } catch (_error) {
       autoReceivedRef.current.delete(transfer.id);
     } finally {
