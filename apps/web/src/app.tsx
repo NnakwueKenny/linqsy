@@ -1039,14 +1039,38 @@ export function App() {
     };
   }, [closed, deviceId, isReceiver, manualDisconnect, preview, receiverReady, session.code, session.status]);
 
-  function triggerNativeDownload(transfer: Transfer) {
+  async function saveResponseToDisk(response: Response, transfer: Transfer) {
+    if (
+      'showSaveFilePicker' in window &&
+      typeof window.showSaveFilePicker === 'function' &&
+      response.body
+    ) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: transfer.filename,
+        types: [
+          {
+            description: transfer.mimeType || 'File',
+            accept: {
+              [transfer.mimeType || 'application/octet-stream']: ['.*'],
+            },
+          },
+        ],
+      });
+      const writable = await handle.createWritable();
+      await response.body.pipeTo(writable);
+      return;
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = `/api/transfers/${encodeURIComponent(transfer.id)}/download`;
+    link.href = objectUrl;
     link.download = transfer.filename;
     link.rel = 'noopener';
     document.body.appendChild(link);
     link.click();
     link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
   }
 
   async function downloadTransfer(transfer: Transfer) {
@@ -1057,7 +1081,13 @@ export function App() {
     inFlightDownloadsRef.current.add(transfer.id);
 
     try {
-      triggerNativeDownload(transfer);
+      const response = await fetch(`/api/transfers/${encodeURIComponent(transfer.id)}/download`);
+
+      if (!response.ok) {
+        throw new Error('Download failed.');
+      }
+
+      await saveResponseToDisk(response, transfer);
     } catch (_error) {
       autoReceivedRef.current.delete(transfer.id);
     } finally {
