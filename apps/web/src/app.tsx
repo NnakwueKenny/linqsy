@@ -22,6 +22,7 @@ import QRCode from 'qrcode';
 import logoIcon from '../assets/images/logo_icon.jpeg';
 
 
+
 type AppTheme = 'light' | 'dark';
 
 type PendingAction = 'restart' | 'shutdown' | null;
@@ -30,6 +31,32 @@ type SelectedFile = {
   file: File;
   relativePath: string;
 };
+
+const UPLOAD_CONCURRENCY = 3;
+const DOWNLOAD_RETRY_DELAY_MS = 30_000;
+
+function encodeTransferHeader(value: string) {
+  return encodeURIComponent(value);
+}
+
+function getUploadErrorMessage(xhr: XMLHttpRequest) {
+  const fallback = xhr.status
+    ? `Upload failed with HTTP ${xhr.status}.`
+    : 'Upload failed before the server responded.';
+
+  if (!xhr.responseText) {
+    return fallback;
+  }
+
+  try {
+    const payload = JSON.parse(xhr.responseText) as { message?: unknown };
+    return typeof payload.message === 'string' && payload.message.trim()
+      ? payload.message
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 type BrowserNavigator = Navigator & {
   userAgentData?: {
@@ -781,6 +808,7 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [closed, setClosed] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
@@ -841,6 +869,10 @@ export function App() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     window.localStorage.setItem('linqsy:theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    setUploadError('');
+  }, [session.code]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1039,19 +1071,15 @@ export function App() {
     };
   }, [closed, deviceId, isReceiver, manualDisconnect, preview, receiverReady, session.code, session.status]);
 
-  async function saveBlob(blob: Blob, filename: string) {
-    const objectUrl = URL.createObjectURL(blob);
+  function startNativeDownload(url: string, filename: string) {
     const link = document.createElement('a');
-    link.href = objectUrl;
+    link.href = url;
     link.download = filename;
     link.rel = 'noopener';
+    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
     link.remove();
-
-    window.setTimeout(() => {
-      URL.revokeObjectURL(objectUrl);
-    }, 1200);
   }
 
   async function downloadTransfer(transfer: Transfer) {
@@ -1062,48 +1090,32 @@ export function App() {
     inFlightDownloadsRef.current.add(transfer.id);
 
     try {
-      const response = await fetch(`/api/transfers/${encodeURIComponent(transfer.id)}/download`);
-
-      if (!response.ok) {
-        throw new Error('Download failed.');
-      }
-
-      if (response.body) {
-        const reader = response.body.getReader();
-        const chunks: ArrayBuffer[] = [];
-
-        while (true) {
-          const chunk = await reader.read();
-
-          if (chunk.done) {
-            break;
-          }
-
-          if (chunk.value) {
-            chunks.push(
-              chunk.value.buffer.slice(
-                chunk.value.byteOffset,
-                chunk.value.byteOffset + chunk.value.byteLength,
-              ) as ArrayBuffer,
-            );
-          }
-        }
-
-        await saveBlob(
-          new Blob(chunks, {
-            type: response.headers.get('content-type') || transfer.mimeType || 'application/octet-stream',
-          }),
-          transfer.filename,
-        );
-      } else {
-        await saveBlob(await response.blob(), transfer.filename);
-      }
+      startNativeDownload(
+        `/api/transfers/${encodeURIComponent(transfer.id)}/download`,
+        transfer.filename,
+      );
+      window.setTimeout(() => {
+        inFlightDownloadsRef.current.delete(transfer.id);
+      }, DOWNLOAD_RETRY_DELAY_MS);
     } catch (_error) {
       autoReceivedRef.current.delete(transfer.id);
-    } finally {
       inFlightDownloadsRef.current.delete(transfer.id);
     }
   }
+
+  useEffect(() => {
+    const transferStatuses = new Map(
+      session.transfers.map((transfer) => [transfer.id, transfer.status]),
+    );
+
+    for (const transferId of inFlightDownloadsRef.current) {
+      const status = transferStatuses.get(transferId);
+
+      if (status && status !== 'ready' && status !== 'downloading') {
+        inFlightDownloadsRef.current.delete(transferId);
+      }
+    }
+  }, [session.transfers]);
 
   useEffect(() => {
     if (preview || !deviceId || closed || session.status === 'ended') {
@@ -1329,21 +1341,29 @@ export function App() {
       return;
     }
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `/api/session/${encodeURIComponent(session.code)}/transfers/upload`);
       xhr.setRequestHeader('Content-Type', 'application/octet-stream');
       xhr.setRequestHeader('X-Linqsy-Device-Id', deviceId);
-      xhr.setRequestHeader('X-Linqsy-Filename', selected.file.name);
+      xhr.setRequestHeader('X-Linqsy-Filename', encodeTransferHeader(selected.file.name));
       xhr.setRequestHeader('X-Linqsy-Mime-Type', selected.file.type || 'application/octet-stream');
       xhr.setRequestHeader('X-Linqsy-Size', String(selected.file.size));
 
       if (selected.relativePath) {
-        xhr.setRequestHeader('X-Linqsy-Relative-Path', selected.relativePath);
+        xhr.setRequestHeader('X-Linqsy-Relative-Path', encodeTransferHeader(selected.relativePath));
       }
 
-      xhr.addEventListener('load', () => resolve());
-      xhr.addEventListener('error', () => resolve());
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+          return;
+        }
+
+        reject(new Error(getUploadErrorMessage(xhr)));
+      });
+      xhr.addEventListener('error', () => reject(new Error('The connection dropped while sending.')));
+      xhr.addEventListener('abort', () => reject(new Error('The upload was cancelled.')));
       xhr.send(selected.file);
     });
   }
@@ -1353,8 +1373,27 @@ export function App() {
       return;
     }
 
-    for (const selected of files) {
-      await uploadFile(selected);
+    setUploadError('');
+
+    let nextFileIndex = 0;
+    const workerCount = Math.min(UPLOAD_CONCURRENCY, files.length);
+
+    try {
+      await Promise.all(
+        Array.from({ length: workerCount }, async () => {
+          while (nextFileIndex < files.length) {
+            const selected = files[nextFileIndex];
+            nextFileIndex += 1;
+
+            if (selected) {
+              await uploadFile(selected);
+            }
+          }
+        }),
+      );
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Upload failed.');
+      setQueueOpen(true);
     }
 
     if (fileInputRef.current) {
@@ -1526,7 +1565,9 @@ export function App() {
           ? 'Waiting'
           : 'Drop files';
   const transferSubtitle =
-    session.status === 'ended'
+    uploadError
+      ? uploadError
+      : session.status === 'ended'
       ? isHost && closed
         ? 'This tab can close now.'
         : 'You can start again any time.'

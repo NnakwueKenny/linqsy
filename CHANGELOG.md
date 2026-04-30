@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.4 - 2026-04-30
+
+Large transfer reliability patch.
+
+Highlights:
+- raised the streamed binary upload cap for LAN-sized transfers
+- improved local upload/download stream buffering
+- switched received downloads away from in-memory Blob assembly
+- surfaced browser upload failures instead of silently swallowing them
+- encoded transfer filename and folder-path headers for real-world filenames
+
 ## 0.1.3 - 2026-04-25
 
 CLI symlink execution hotfix.

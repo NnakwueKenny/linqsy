@@ -237,6 +237,37 @@ test('host can upload and download a transfer', async (t) => {
   assert.equal(downloadedTransfer?.status, 'completed');
 });
 
+test('host can upload a transfer larger than the default Fastify body limit', async (t) => {
+  const app = createTestApp();
+  t.after(async () => {
+    await app.close();
+  });
+
+  const session = await getCurrentSession(app);
+  const fileContents = Buffer.alloc((1024 * 1024) + 128, 'a');
+
+  const uploadResponse = await app.inject({
+    method: 'POST',
+    url: '/api/session/TEST42/transfers/upload',
+    payload: fileContents,
+    headers: {
+      'content-type': 'application/octet-stream',
+      'x-linqsy-device-id': session.hostDeviceId,
+      'x-linqsy-filename': 'large.bin',
+      'x-linqsy-mime-type': 'application/octet-stream',
+      'x-linqsy-size': String(fileContents.length),
+    },
+  });
+
+  assert.equal(uploadResponse.statusCode, 200);
+
+  const uploadedTransfer = uploadResponse.json() as TransferResponse;
+
+  assert.equal(uploadedTransfer.filename, 'large.bin');
+  assert.equal(uploadedTransfer.size, fileContents.length);
+  assert.equal(uploadedTransfer.status, 'ready');
+});
+
 test('host can cancel a transfer and it becomes unavailable', async (t) => {
   const app = createTestApp();
   t.after(async () => {

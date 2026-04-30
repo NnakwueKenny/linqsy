@@ -6,6 +6,8 @@ import { pipeline } from 'node:stream/promises';
 import { tmpdir } from 'node:os';
 import type { TransferStorage } from './transfer-storage';
 
+const TRANSFER_STREAM_HIGH_WATER_MARK = 1024 * 1024;
+
 export class LocalTransferStorage implements TransferStorage {
 
   constructor(private readonly rootDir = join(tmpdir(), 'linqsy-transfer-storage')) {}
@@ -29,7 +31,9 @@ export class LocalTransferStorage implements TransferStorage {
   }
 
   async createTransferReadStream(sessionCode: string, transferId: string): Promise<Readable> {
-    return createReadStream(this.getTransferPath(sessionCode, transferId));
+    return createReadStream(this.getTransferPath(sessionCode, transferId), {
+      highWaterMark: TRANSFER_STREAM_HIGH_WATER_MARK,
+    });
   }
 
   async deleteTransferFile(sessionCode: string, transferId: string): Promise<void> {
@@ -45,7 +49,12 @@ export class LocalTransferStorage implements TransferStorage {
       recursive: true,
     });
 
-    await pipeline(stream, createWriteStream(this.getTransferPath(sessionCode, transferId)));
+    await pipeline(
+      stream,
+      createWriteStream(this.getTransferPath(sessionCode, transferId), {
+        highWaterMark: TRANSFER_STREAM_HIGH_WATER_MARK,
+      }),
+    );
   }
 
   private getSessionDir(sessionCode: string): string {
