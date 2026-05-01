@@ -50,7 +50,7 @@ type TransferFailureCode =
   | 'session_ended'
   | 'unavailable';
 
-const MAX_TRANSFER_BYTES = 1024 * 1024 * 1024 * 1024;
+const MAX_TRANSFER_BYTES = 10 * 1024 * 1024 * 1024;   // Maximum of 10 Gigabytes
 
 function isValidationError(error: unknown): error is { issues: unknown } {
   return typeof error === 'object' && error !== null && 'issues' in error;
@@ -489,6 +489,16 @@ export function createApp(config: AppConfig, bootstrap: AppBootstrapContext) {
         finalized = true;
         const failed = transferService.failTransfer(result.transfer.id);
         void failed;
+      });
+
+      reply.raw.once('close', () => {
+        if (finalized) {
+          return;
+        }
+
+        finalized = true;
+        const reset = transferService.resetDownload(result.transfer.id);
+        void reset;
       });
 
       reply.header('content-disposition', buildContentDisposition(result.transfer.filename));

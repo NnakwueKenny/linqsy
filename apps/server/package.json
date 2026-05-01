@@ -17,7 +17,7 @@
   },
   "scripts": {
     "build": "pnpm --filter @linqsy/web build && tsc -p tsconfig.json && node ../../scripts/rewrite-relative-imports.mjs dist && node ../../scripts/copy-web-dist.mjs ../web/dist dist/apps/server/web",
-    "dev": "node --watch --import tsx src/main.ts",
+    "dev": "tsx watch src/main.ts",
     "prepack": "pnpm build",
     "test": "pnpm --filter @linqsy/web build && node --test --import tsx src/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

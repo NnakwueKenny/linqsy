@@ -16,7 +16,7 @@
     "clean": "node ./scripts/clean-workspace.mjs",
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r --if-present build",
-    "dev:cli": "pnpm --filter @linqsy/web build && pnpm --filter @linqsy/cli dev",
+    "dev:cli": "pnpm --filter @linqsy/web build && pnpm --filter linqsy dev",
     "dev:web": "pnpm --filter @linqsy/web dev",
     "typecheck": "pnpm -r --if-present typecheck",
     "dev:server": "pnpm --filter @linqsy/server dev",

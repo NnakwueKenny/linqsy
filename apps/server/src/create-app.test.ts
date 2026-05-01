@@ -7,6 +7,7 @@ import type {
 } from '@linqsy/shared';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { PassThrough } from 'node:stream';
 import { createApp, } from './create-app';
 import { resolveAppConfig, } from '@linqsy/config';
 
@@ -37,6 +38,25 @@ async function getCurrentSession(app: ReturnType<typeof createTestApp>) {
 
   assert.equal(response.statusCode, 200);
   return response.json() as Session;
+}
+
+async function waitForTransfer(
+  app: ReturnType<typeof createTestApp>,
+  predicate: (session: Session) => boolean,
+) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const session = await getCurrentSession(app);
+
+    if (predicate(session)) {
+      return session;
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 25);
+    });
+  }
+
+  throw new Error('Timed out waiting for transfer state.');
 }
 
 test('bootstrapped session is available over HTTP', async (t) => {
@@ -266,6 +286,73 @@ test('host can upload a transfer larger than the default Fastify body limit', as
   assert.equal(uploadedTransfer.filename, 'large.bin');
   assert.equal(uploadedTransfer.size, fileContents.length);
   assert.equal(uploadedTransfer.status, 'ready');
+});
+
+test('receiver can download while sender upload is still streaming', async (t) => {
+  const app = createTestApp();
+  t.after(async () => {
+    await app.close();
+  });
+
+  const session = await getCurrentSession(app);
+  const joinResponse = await app.inject({
+    method: 'POST',
+    url: '/api/session/TEST42/join',
+    payload: {
+      deviceName: 'Live receiver',
+    },
+  });
+
+  assert.equal(joinResponse.statusCode, 200);
+
+  const fileContents = Buffer.from('hello from live relay');
+  const uploadStream = new PassThrough();
+  const uploadResponsePromise = app.inject({
+    method: 'POST',
+    url: '/api/session/TEST42/transfers/upload',
+    payload: uploadStream,
+    headers: {
+      'content-type': 'application/octet-stream',
+      'x-linqsy-device-id': session.hostDeviceId,
+      'x-linqsy-filename': 'live.txt',
+      'x-linqsy-mime-type': 'text/plain',
+      'x-linqsy-size': String(fileContents.length),
+    },
+  });
+
+  const queuedSession = await waitForTransfer(app, (currentSession) =>
+    currentSession.transfers.some((transfer) => transfer.filename === 'live.txt'),
+  );
+  const liveTransfer = queuedSession.transfers.find((transfer) => transfer.filename === 'live.txt');
+
+  assert.equal(liveTransfer?.status, 'queued');
+
+  const downloadResponsePromise = app.inject({
+    method: 'GET',
+    url: `/api/transfers/${liveTransfer?.id}/download`,
+  });
+
+  uploadStream.end(fileContents);
+
+  const [uploadResponse, downloadResponse] = await Promise.all([
+    uploadResponsePromise,
+    downloadResponsePromise,
+  ]);
+
+  assert.equal(uploadResponse.statusCode, 200);
+  assert.equal(downloadResponse.statusCode, 200);
+  assert.equal(downloadResponse.body, fileContents.toString());
+
+  await new Promise((resolve) => {
+    setTimeout(resolve, 10);
+  });
+
+  const completedSession = await getCurrentSession(app);
+  const completedTransfer = completedSession.transfers.find(
+    (transfer) => transfer.id === liveTransfer?.id,
+  );
+
+  assert.equal(completedTransfer?.status, 'completed');
 });
 
 test('host can cancel a transfer and it becomes unavailable', async (t) => {

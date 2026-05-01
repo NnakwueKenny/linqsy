@@ -5,11 +5,13 @@ import type {
   CancelTransferRequest,
   UploadTransferHeaders,
 } from '@linqsy/shared';
-import { Readable, Transform, } from 'node:stream';
+import { PassThrough, Readable, Transform, } from 'node:stream';
 import { generateId } from '../lib/generate-identifiers';
 import { sessionSchema, transferSchema } from '@linqsy/shared';
 import type { SessionStore } from '../stores/session-store';
 import type { TransferStorage } from '../storage/transfer-storage';
+
+const LIVE_DOWNLOAD_WAIT_MS = 1500;
 
 
 type TransferContext = {
@@ -39,11 +41,22 @@ type DownloadPreparation = TransferSuccess & {
   stream: Readable;
 };
 
+type LiveTransfer = {
+  acceptingDownloads: boolean;
+  attached: boolean;
+  closed: boolean;
+  resolveAttachment: (attached: boolean) => void;
+  stream: PassThrough;
+  waitForAttachment: Promise<boolean>;
+};
+
 type TransferServiceHooks = {
   onSessionUpdated?: (session: Session) => void;
 };
 
 export class TransferService {
+  private readonly liveTransfers = new Map<string, LiveTransfer>();
+
   constructor(
     private readonly store: SessionStore,
     private readonly storage: TransferStorage,
@@ -99,6 +112,9 @@ export class TransferService {
       };
     }
 
+    const hasOnlineReceiver = session.devices.some(
+      (device) => device.id !== sender.id && device.isOnline,
+    );
     const transfer = transferSchema.parse({
       id: generateId(),
       status: 'queued',
@@ -117,8 +133,15 @@ export class TransferService {
       ...session,
       transfers: [transfer, ...session.transfers],
     });
+    const liveTransfer = hasOnlineReceiver ? this.createLiveTransfer(transfer.id) : null;
+    const receiverAttached = liveTransfer ? await liveTransfer.waitForAttachment : false;
 
-    currentSession = this.setTransferStatus(currentSession, transfer.id, 'uploading');
+    currentSession = this.findTransferContext(transfer.id)?.session ?? currentSession;
+
+    if (!receiverAttached) {
+      currentSession = this.setTransferStatus(currentSession, transfer.id, 'uploading');
+    }
+
     const uploadTracker = this.createProgressStream(
       currentSession.code,
       transfer.id,
@@ -128,24 +151,77 @@ export class TransferService {
     try {
       const meteredStream = input.stream.pipe(
         new Transform({
-          transform(chunk, _encoding, callback) {
+          transform: (chunk, _encoding, callback) => {
             const size = Buffer.isBuffer(chunk)
               ? chunk.byteLength
               : Buffer.byteLength(String(chunk));
             uploadTracker.track(size);
-            callback(null, chunk);
+
+            if (
+              !liveTransfer ||
+              !liveTransfer.attached ||
+              liveTransfer.closed ||
+              liveTransfer.stream.destroyed
+            ) {
+              callback(null, chunk);
+              return;
+            }
+
+            liveTransfer.stream.write(chunk, (error) => {
+              if (error) {
+                liveTransfer.closed = true;
+              }
+
+              callback(null, chunk);
+            });
           },
-          flush(callback) {
+          flush: (callback) => {
             uploadTracker.finish();
+
+            if (
+              liveTransfer?.attached &&
+              !liveTransfer.closed &&
+              !liveTransfer.stream.destroyed
+            ) {
+              liveTransfer.stream.end();
+            }
+
             callback();
           },
         }),
       );
 
       await this.storage.writeTransferFile(currentSession.code, transfer.id, meteredStream);
-      currentSession = this.setTransferStatus(currentSession, transfer.id, 'ready');
+      this.liveTransfers.delete(transfer.id);
+
+      const latestContext = this.findTransferContext(transfer.id);
+
+      if (!latestContext) {
+        return {
+          ok: false,
+          code: 'not_found',
+        };
+      }
+
+      if (latestContext.transfer.status === 'completed') {
+        await this.storage.deleteTransferFile(latestContext.session.code, transfer.id).catch(() => undefined);
+        return this.createSuccess(latestContext.session, transfer.id);
+      }
+
+      if (latestContext.transfer.status === 'downloading') {
+        return this.createSuccess(latestContext.session, transfer.id);
+      }
+
+      currentSession = this.setTransferStatus(latestContext.session, transfer.id, 'ready');
       return this.createSuccess(currentSession, transfer.id);
     } catch (error) {
+      this.liveTransfers.delete(transfer.id);
+
+      if (liveTransfer) {
+        liveTransfer.closed = true;
+        liveTransfer.stream.destroy(error instanceof Error ? error : new Error(String(error)));
+      }
+
       currentSession = this.setTransferStatus(currentSession, transfer.id, 'failed');
       await this.storage.deleteTransferFile(currentSession.code, transfer.id).catch(() => undefined);
       throw error;
@@ -165,11 +241,33 @@ export class TransferService {
     if (
       context.session.status === 'ended' ||
       context.transfer.status === 'cancelled' ||
+      context.transfer.status === 'completed' ||
       context.transfer.status === 'failed'
     ) {
       return {
         ok: false,
         code: 'unavailable',
+      };
+    }
+
+    const liveTransfer = this.liveTransfers.get(transferId);
+
+    if (
+      liveTransfer &&
+      liveTransfer.acceptingDownloads &&
+      !liveTransfer.attached &&
+      !liveTransfer.closed &&
+      (context.transfer.status === 'queued' || context.transfer.status === 'uploading')
+    ) {
+      liveTransfer.attached = true;
+      liveTransfer.acceptingDownloads = false;
+      liveTransfer.resolveAttachment(true);
+      const session = this.setTransferStatus(context.session, transferId, 'downloading');
+      const success = this.createSuccess(session, transferId);
+
+      return {
+        ...success,
+        stream: liveTransfer.stream,
       };
     }
 
@@ -256,7 +354,43 @@ export class TransferService {
   }
 
   completeDownload(transferId: string): TransferSuccess | TransferFailure {
-    return this.updateTransferLifecycleStatus(transferId, 'completed');
+    const result = this.updateTransferLifecycleStatus(transferId, 'completed');
+
+    if (result.ok && !this.liveTransfers.has(transferId)) {
+      void this.storage.deleteTransferFile(result.session.code, transferId).catch(() => undefined);
+    }
+
+    return result;
+  }
+
+  resetDownload(transferId: string): TransferSuccess | TransferFailure {
+    const context = this.findTransferContext(transferId);
+
+    if (!context) {
+      return {
+        ok: false,
+        code: 'not_found',
+      };
+    }
+
+    const liveTransfer = this.liveTransfers.get(transferId);
+
+    if (liveTransfer) {
+      liveTransfer.closed = true;
+      liveTransfer.acceptingDownloads = false;
+      liveTransfer.stream.destroy();
+    }
+
+    if (context.transfer.status !== 'downloading') {
+      return this.createSuccess(context.session, transferId);
+    }
+
+    const session = this.setTransferStatus(
+      context.session,
+      transferId,
+      liveTransfer ? 'uploading' : 'ready',
+    );
+    return this.createSuccess(session, transferId);
   }
 
   failTransfer(transferId: string): TransferSuccess | TransferFailure {
@@ -317,6 +451,46 @@ export class TransferService {
     const savedSession = this.store.save(sessionSchema.parse(session));
     this.hooks.onSessionUpdated?.(savedSession);
     return savedSession;
+  }
+
+  private createLiveTransfer(transferId: string): LiveTransfer {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let settled = false;
+    let resolveAttachment: (attached: boolean) => void = () => undefined;
+    const waitForAttachment = new Promise<boolean>((resolve) => {
+      resolveAttachment = (attached: boolean) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        resolve(attached);
+      };
+    });
+    const liveTransfer: LiveTransfer = {
+      acceptingDownloads: true,
+      attached: false,
+      closed: false,
+      resolveAttachment,
+      stream: new PassThrough({
+        highWaterMark: 1024 * 1024,
+      }),
+      waitForAttachment,
+    };
+
+    timeoutId = setTimeout(() => {
+      liveTransfer.acceptingDownloads = false;
+      resolveAttachment(false);
+    }, LIVE_DOWNLOAD_WAIT_MS);
+
+    this.liveTransfers.set(transferId, liveTransfer);
+    return liveTransfer;
   }
 
   private setTransferStatus(

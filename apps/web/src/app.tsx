@@ -1088,18 +1088,23 @@ export function App() {
     }
 
     inFlightDownloadsRef.current.add(transfer.id);
+    let keepInFlightUntilStatusChanges = false;
+    setUploadError('');
 
     try {
-      startNativeDownload(
-        `/api/transfers/${encodeURIComponent(transfer.id)}/download`,
-        transfer.filename,
-      );
+      const downloadUrl = `/api/transfers/${encodeURIComponent(transfer.id)}/download`;
+      startNativeDownload(downloadUrl, transfer.filename);
+      keepInFlightUntilStatusChanges = true;
       window.setTimeout(() => {
         inFlightDownloadsRef.current.delete(transfer.id);
       }, DOWNLOAD_RETRY_DELAY_MS);
     } catch (_error) {
       autoReceivedRef.current.delete(transfer.id);
-      inFlightDownloadsRef.current.delete(transfer.id);
+      setUploadError('Download failed before the file could be saved.');
+    } finally {
+      if (!keepInFlightUntilStatusChanges) {
+        inFlightDownloadsRef.current.delete(transfer.id);
+      }
     }
   }
 
@@ -1111,7 +1116,7 @@ export function App() {
     for (const transferId of inFlightDownloadsRef.current) {
       const status = transferStatuses.get(transferId);
 
-      if (status && status !== 'ready' && status !== 'downloading') {
+      if (status && status !== 'queued' && status !== 'ready' && status !== 'downloading') {
         inFlightDownloadsRef.current.delete(transferId);
       }
     }
@@ -1135,7 +1140,15 @@ export function App() {
       .sort((left, right) => left.createdAt - right.createdAt);
 
     for (const transfer of transfers) {
-      if (transfer.senderDeviceId === deviceId || transfer.status !== 'ready') {
+      const canStartDownload =
+        transfer.status === 'queued' ||
+        transfer.status === 'ready' ||
+        (
+          transfer.status === 'downloading' &&
+          Number(transfer.bytesTransferred || 0) === 0
+        );
+
+      if (transfer.senderDeviceId === deviceId || !canStartDownload) {
         continue;
       }
 
