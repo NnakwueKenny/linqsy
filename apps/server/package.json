@@ -1,6 +1,6 @@
 {
   "name": "@linqsy/server",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "description": "Server runtime for Linqsy local-network browser transfers.",
   "license": "MIT",

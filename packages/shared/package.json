@@ -1,6 +1,6 @@
 {
   "name": "@linqsy/shared",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "description": "Shared contracts and schemas for Linqsy.",
   "license": "MIT",

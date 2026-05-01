@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5 - 2026-05-01
+
+Live streaming transfer polish.
+
+Highlights:
+- improved CLI development startup around the web client build flow
+- refined transfer streaming behavior for active uploads and downloads
+- prepared the next npm patch release after 0.1.4
+
 ## 0.1.4 - 2026-04-30
 
 Large transfer reliability patch.
